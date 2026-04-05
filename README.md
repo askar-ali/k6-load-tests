@@ -12,6 +12,9 @@ Performance baselines and capacity planning for client-facing services with k6.
 | `tests/smoke.js` | Is the service up and sane? | 1 VU, 30s |
 | `tests/load.js` | Baseline at expected traffic | ramp to 20 VUs, hold, ramp down |
 | `tests/stress.js` | Find the breaking point | stepped ramp until thresholds fail |
+| `tests/spike.js` | Survive and recover from a sudden 10x surge | 10 -> 100 -> 10 VUs |
+| `tests/soak.js` | Find leaks and slow degradation | constant load for hours (`SOAK_DURATION`) |
+| `tests/checkout-flow.js` | Realistic login -> browse -> order journey | per-VU users from CSV |
 
 Every script enforces thresholds (p95 latency, error rate), so a regression fails the run.
 
