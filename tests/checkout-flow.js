@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
+import { Counter } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 import papaparse from 'https://jslib.k6.io/papaparse/5.1.1/index.js';
 import { BASE_URL, thresholds } from '../lib/config.js';
@@ -8,10 +9,19 @@ import { BASE_URL, thresholds } from '../lib/config.js';
 const users = new SharedArray('users', () =>
   papaparse.parse(open('../data/users.csv'), { header: true }).data.filter((u) => u.user));
 
+const ordersPlaced = new Counter('orders_placed');
+
 export const options = {
   vus: 6,
   duration: '30s',
-  thresholds,
+  thresholds: {
+    ...thresholds,
+    // Orders write to the database, so allow them more time than reads.
+    'http_req_duration{name:items}': ['p(95)<200'],
+    'http_req_duration{name:order}': ['p(95)<400'],
+    'http_req_duration{name:login}': ['p(95)<300'],
+    orders_placed: ['count>0'],
+  },
 };
 
 export default function () {
@@ -35,7 +45,7 @@ export default function () {
   group('order', () => {
     const res = http.post(`${BASE_URL}/api/orders`, JSON.stringify({ items: [1, 2] }),
       { ...auth, tags: { name: 'order' } });
-    check(res, { 'order 201': (r) => r.status === 201 });
+    if (check(res, { 'order 201': (r) => r.status === 201 })) ordersPlaced.add(1);
   });
   sleep(1);
 }
